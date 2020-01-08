@@ -35,3 +35,5 @@ comic-dl-ru.py <-i | --issue | -s | --series | -w | --weekly> <cooresponding url
 
 
 I have only tested this using python 3 and ubuntu server.
+
+I also use comictagger ( https://github.com/comictagger/comictagger ) for tagging and properly naming the files
