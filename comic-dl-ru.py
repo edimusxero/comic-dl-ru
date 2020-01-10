@@ -29,7 +29,7 @@ from configparser import SafeConfigParser
 
 
 # Set to location of the .ini configuration file
-ConfigurationFile = 'config.ini'
+ConfigurationFile = '/root/test/config.ini'
 
 parser = SafeConfigParser()
 parser.read(ConfigurationFile)
@@ -262,9 +262,22 @@ def process_issue(issue):
     cleaned_title, comic_name = clean_title(issue)
     striped = cleaned_title.strip()
     striped = re.sub(r'-|:', r'', striped).rstrip()
-    issue_num = re.search(r"^(.+?) \((\d+).+Chapter (\d+).+$", striped)
-    full_issue = (issue_num.group(1) + " (" +
-                  issue_num.group(2) + ") #" + issue_num.group(3))
+
+    print("What's here : " + striped)
+
+    issue_num = re.search(r"^(.+) Chapter (\d+).+$", striped)
+
+    try:
+        issue_name = issue_num.group(1)
+    except Exception:
+        issue_name = ''
+
+    try:
+        issue_number = issue_num.group(2)
+    except Exception:
+        issue_number = ''
+
+    full_issue = (issue_name + ' #' + issue_number)
     path = create_file_path(full_issue)
     download_single(issue, path, full_issue, download_directory)
 
