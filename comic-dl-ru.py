@@ -71,11 +71,6 @@ def download_file(url, file_name):
                                 stream=True)
         total_length = int(response.headers.get('content-length'))
 
-        try:
-            print(response.headers["content-type"], flush=True)
-        except KeyError:
-            print('No Header : Content Type', flush=True)
-
         if total_length:
             print(total_length / 1024, "Kb", flush=True)
 
@@ -85,7 +80,7 @@ def download_file(url, file_name):
             print('No Header : Date', flush=True)
 
         if total_length is None:
-            f.write(response.content)
+            print(response.content, flush=True)
         else:
             dl = 0
             for data in response.iter_content(chunk_size=4096):
@@ -96,6 +91,8 @@ def download_file(url, file_name):
                                  ('=' * done, ' ' *
                                   (50-done), dl//(time.clock() - start)))
                 sys.stdout.flush()
+
+        print("\n")
 
 
 def file_size(fname):
@@ -182,14 +179,14 @@ def download_entire_series(main_comic, path):
             full_path = path + '/' + sub_title
             Path(full_path).mkdir(parents=True, exist_ok=True)
             os.chdir(path + '/' + sub_title)
-            print("\nDownloading : " + sub_title, flush=True)
+            print("Downloading : " + sub_title, flush=True)
 
             create_zip(path, sub_comic, sub_title)
 
             os.chdir(path)
 
             if not os.path.exists(sub_title + '.zip'):
-                print('\nNow Creating Comic Book Archive ....\n',
+                print('Now Creating Comic Book Archive ....',
                       flush=True)
                 shutil.make_archive(sub_title, 'zip', full_path)
                 shutil.rmtree(sub_title)
@@ -203,26 +200,27 @@ def download_entire_series(main_comic, path):
     uid = getpwnam('nobody')[2]
     gid = grp.getgrnam('nogroup')[2]
     os.chown(path, uid, gid)
-    print('\nFile Creation Complete!\n', flush=True)
+    print('File Creation Complete!\n\n', flush=True)
 
 
 # function for single issue download
 def download_single(issue, download_directory, full_issue, zip_dir):
     issue_request = get_url(issue)
-    create_file_path
+    create_file_path(full_issue)
     imgs = issue_request.find_all("img", {"class": "img-responsive"})
 
     os.chdir(download_directory)
+    print("------------------------------------------------------------", flush=True)
+    print("\nDownloading --- | " + full_issue + " | ---\n", flush=True)
+    print("------------------------------------------------------------", flush=True)
 
     for i in imgs:
         try:
             dl = i['data-src']
-            print(download_directory)
 
             if dl is not None:
                 file_name = dl.rsplit('/', 1)[-1]
                 file_name = file_name.strip()
-                print("\nDownloading : " + file_name, flush=True)
 
                 if not os.path.exists(file_name):
                     download_file(dl.strip(), file_name)
@@ -235,7 +233,7 @@ def download_single(issue, download_directory, full_issue, zip_dir):
 
     if not os.path.exists(full_issue + '.zip'):
         os.chdir(zip_dir)
-        print('\nNow Creating Comic Book Archive ....\n', flush=True)
+        print('Now Creating Comic Book Archive ....', flush=True)
         shutil.make_archive(full_issue, 'zip', download_directory)
         shutil.rmtree(full_issue)
         os.rename(full_issue + '.zip', full_issue + '.cbz')
@@ -248,7 +246,7 @@ def download_single(issue, download_directory, full_issue, zip_dir):
     uid = getpwnam('nobody')[2]
     gid = grp.getgrnam('nogroup')[2]
     os.chown(full_issue + '.cbz', uid, gid)
-    print('\nFile Creation Complete!\n', flush=True)
+    print('File Creation Complete!\n\n', flush=True)
 
 
 '''
@@ -263,8 +261,6 @@ def process_issue(issue):
     striped = cleaned_title.strip()
     striped = re.sub(r'-|:', r'', striped).rstrip()
 
-    print("What's here : " + striped)
-
     issue_num = re.search(r"^(.+) Chapter (\d+).+$", striped)
 
     try:
@@ -278,6 +274,13 @@ def process_issue(issue):
         issue_number = ''
 
     full_issue = (issue_name + ' #' + issue_number)
+
+    check_file = full_issue + ".cbz"
+
+    if check_if_exists(check_file) is True:
+        print("Exists : " + full_issue, flush=True)
+        return
+
     path = create_file_path(full_issue)
     download_single(issue, path, full_issue, download_directory)
 
@@ -285,7 +288,6 @@ def process_issue(issue):
 # process the entire series
 def process_series(series):
     cleaned_title, comic_name = clean_title(series)
-    print(cleaned_title)
     path = create_file_path(cleaned_title)
     download_entire_series(comic_name, path)
 
@@ -312,6 +314,15 @@ def weekly_download(weekly):
                     if full_url not in list:
                         process_issue(full_url)
                         list.append(full_url)
+
+
+def check_if_exists(file):
+    comics = os.listdir(download_directory)
+
+    if file in comics:
+        return True
+    else:
+        return False
 
 
 url = get_args()
