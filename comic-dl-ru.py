@@ -48,18 +48,32 @@ def get_args():
     parser.add_argument('-w', '--weekly', type=str, required=False,
                         metavar='<url of the Weekly section>')
 
+    parser.add_argument('-l', '--latest', type=str, required=False,
+                        metavar='<url of Main page>')
+                        
+    parser.add_argument('-r', '--rng', type=str, required=False,
+                        metavar='Issue range <1-10> <url of Main page>')
+
     args = parser.parse_args()
     series = args.series
     issue = args.issue
     weekly = args.weekly
+    latest = args.latest
+    rng = args.rng
 
-    if not series and not issue and not weekly:
+    if not series and not issue and not weekly and not latest:
         parser.error('Comic Ripper requires an arguement')
 
-    if series and issue and weekly:
+    if series and issue and weekly and latest:
         parser.error('Only 1 option is allowed')
 
-    return (series, issue, weekly)
+    if rng and not series:
+        parser.error('Range option requires series arguement')
+    
+    if rng and weekly and issue:
+        parser.error('Range option only works with the series switch')
+        
+    return (series, issue, weekly, latest, rng)
 
 
 # Purely for looks, this function displays a file download status
@@ -114,15 +128,20 @@ def get_url(url):
 def fix_title(content):
     sub_title = content.title.string
     clean_sub_title = re.sub(r'-|:', r'', sub_title).rstrip()
-    clean_sub_title = re.search(r'^\s+(.+?) Chapter (\d+)',
+    stripped = re.search(r'^\s+(.+?) Chapter.+?(\d+)',
                                 clean_sub_title, re.IGNORECASE)
-    cst = clean_sub_title.group(1)
-    issue_number = clean_sub_title.group(2)
+
+    cst = stripped.group(1)
+    issue_number = stripped.group(2)
 
     if (int(issue_number) < 10):
         issue_number = '0' + issue_number
 
-    formatted = cst + ' #' + issue_number
+    if 'Annual' in clean_sub_title:
+        formatted = cst + ' Annual' + ' #' + issue_number
+    else:
+        formatted = cst + ' #' + issue_number
+
     return(formatted)
 
 
@@ -285,6 +304,19 @@ def process_issue(issue):
     download_single(issue, path, full_issue, download_directory)
 
 
+def grab_latest_issue(latest):
+    main_comic = get_url(latest)
+
+    for sub_div in main_comic.find_all('i'):
+        value = sub_div.attrs.get('class')[1]
+        if value == 'fa-bars':
+            next_tag = sub_div.findAllNext("a", href=True)
+            for individual_issue in next_tag:
+                match = re.match(".+\/\d+$", individual_issue.get('href'))
+                if match:
+                    process_issue(individual_issue.get('href'))
+
+
 # process the entire series
 def process_series(series):
     cleaned_title, comic_name = clean_title(series)
@@ -326,9 +358,9 @@ def check_if_exists(file):
 
 
 url = get_args()
-series, issue, weekly = get_args()
+series, issue, weekly, latest, rng = get_args()
 
-if series:
+if series and not rng:
     process_series(series)
 
 if issue:
@@ -336,3 +368,15 @@ if issue:
 
 if weekly:
     weekly_download(weekly)
+
+if latest:
+    grab_latest_issue(latest)
+
+if rng:
+    issue_range = rng.split('-')
+    start = int(issue_range[0])
+    stop = int(issue_range[1]) + 1
+    series_range = range(start, stop)
+    for dl_range in series_range:
+        full_url = series + '/' + str(dl_range)
+        process_issue(full_url)
